@@ -1,0 +1,15 @@
+services:
+  backend:
+    build: .
+    container_name: flexicare-backend
+    ports:
+      - "3000:3000"
+    env_file:
+      - .env
+    volumes:
+      # Persist SQLite on host so container recreate doesn't wipe history
+      - ./data:/app/data
+    restart: unless-stopped
+    # Limit container resources on mini-PC (optional safety net)
+    mem_limit: 256m
+    cpus: 1.0
