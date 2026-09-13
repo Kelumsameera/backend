@@ -1,104 +1,119 @@
 # Flexicare Monitoring Backend v2
 
-High-efficiency Python backend for factory pressure gauges + water tank level.
+A FastAPI-based backend for collecting pressure-gauge and water-tank telemetry from Modbus-compatible devices and exposing the resulting data as realtime events and REST APIs.
 
-## Why this design (no slowdown / no disk fill)
+## Overview
 
-| Concern | Solution |
-| ------- | -------- |
-| Memory | FastAPI + async Socket.IO (no Flask-eventlet, no InfluxDB JVM) |
-| Disk growth | SQLite WAL + **automatic retention** (default 14 days) |
-| CPU | Single async event loop, poll interval 2 s, connection per read |
-| Query load | Indexed time columns + hard `LIMIT` on history APIs |
-| Reliability | Open/close Modbus per cycle (survives gateway reboots) |
+This service reads device data asynchronously, stores the readings in SQLite, and provides a small API surface for realtime dashboards, database history, statistics, and cleanup operations.
 
-Estimated storage: ~2 s poll × 3 signals ≈ **130k rows/day**.  
-14-day retention ≈ **~50–80 MB** SQLite file — stays small forever.
+The design prioritizes a lightweight local deployment model:
 
-## Frontend contract (matches TSX app)
+- FastAPI for the HTTP and realtime API layer
+- Async background polling for device reads
+- SQLite for local persistence with automatic retention
+- Simple REST endpoints for history and health monitoring
 
-### Socket.IO events
+## Features
 
-```json
-// Pressure
-{ "device": "production_clean_room" | "assembly_clean_room", "value": 12.5 }
+- Realtime pressure and water-tank telemetry
+- Historian-style database queries
+- Resource retention and cleanup controls
+- Health and statistics endpoints
+- Local `.env` configuration for device hosts and runtime settings
 
-// Water tank
-{ "level": 145.0, "setpoint": 180.0, "output": 65.0 }
-```
+## Local development
 
-### REST
-
-```text
-GET /pressure/database/filter?start=YYYY-MM-DD HH:mm:ss&end=...
-GET /water-tank/database/filter?start=...&end=...
-GET /realtime/pressure
-GET /realtime/water
-GET /stats
-POST /admin/cleanup
-GET /health
-```
-
-## Quick start (mini-PC)
+Create and activate a virtual environment:
 
 ```bash
-cd backend
-python3 -m venv .venv
-source .venv/bin/activate   # Windows: .venv\Scripts\activate
+python -m venv .venv
+# Linux / macOS
+source .venv/bin/activate
+# Windows
+.venv\Scripts\activate
+```
+
+Install dependencies:
+
+```bash
 pip install -r requirements.txt
+```
 
+Copy the sample environment file and update values locally:
+
+```bash
 cp .env.example .env
-# Edit Modbus IPs if needed
+```
 
+Create the local data directory, then start the app:
+
+```bash
 mkdir -p data
 python -m uvicorn app.main:app --host 0.0.0.0 --port 3000
 ```
 
-Or with Docker:
+Or run with Docker:
 
 ```bash
-cp .env.example .env
 docker compose up -d --build
 ```
 
-Point the frontend:
+## Environment configuration
+
+Keep secrets and host-specific values in a local `.env` file. Do not commit the file to source control.
+
+| Variable | Example | Meaning |
+| ------- | ------- | ------- |
+| `SENSOR_HOST_*` | `replace-with-device-host` | Device gateway or controller host |
+| `POLL_INTERVAL_SECONDS` | `2.0` | Poll interval used by the backend |
+| `RETENTION_DAYS` | `14` | Number of days to retain raw readings |
+| `HISTORY_MAX_ROWS` | `5000` | Maximum rows returned by history APIs |
+| `DATABASE_PATH` | `./data/modbus.db` | SQLite database path |
+| `CLEANUP_INTERVAL_HOURS` | `6` | Automatic cleanup schedule |
+
+## API overview
+
+The backend exposes a small public API for dashboard integrations and operational checks.
+
+### REST
 
 ```text
-NEXT_PUBLIC_SOCKET_URL=http://<mini-pc-ip>:3000
-NEXT_PUBLIC_API_URL=http://<mini-pc-ip>:3000
+GET /health
+GET /stats
+GET /realtime/pressure
+GET /realtime/water
+GET /pressure/database/filter
+GET /water-tank/database/filter
+POST /admin/cleanup
 ```
 
-## Config (`.env`)
+### Realtime events
 
-| Variable | Default | Meaning |
-| -------- | ------- | ------- |
-| `PRESSURE_*_IP` | 192.168.0.7 / .17 | Pressure gateway IPs |
-| `FY600_IP` | 192.168.0.16 | Water tank controller |
-| `*_POLL_INTERVAL` | 2.0 | Seconds between reads |
-| `RETENTION_DAYS` | 14 | Auto-delete older raw data |
-| `HISTORY_MAX_ROWS` | 5000 | Cap on API responses |
-| `DATABASE_PATH` | `./data/modbus.db` | SQLite file |
+The service also emits realtime updates for pressure and water-tank topics through the Socket.IO event layer.
 
-## Ops
+## Operations
+
+Check server health and telemetry statistics locally:
 
 ```bash
-# Live stats (row counts + DB size)
+curl http://localhost:3000/health
 curl http://localhost:3000/stats
+```
 
-# Force retention cleanup now
+Run a cleanup manually:
+
+```bash
 curl -X POST http://localhost:3000/admin/cleanup
 ```
 
-Cleanup also runs automatically every `CLEANUP_INTERVAL_HOURS` (default 6 h).
-
-## Project layout
+## Project structure
 
 ```text
 app/
-  main.py           # FastAPI + Socket.IO ASGI app
-  config.py         # pydantic-settings
-  api/routes.py     # REST endpoints
-  db/database.py    # SQLite WAL + retention
-  modbus/client.py  # Async Modbus TCP helpers
+  main.py
+  config.py
+  api/routes.py
+  db/database.py
+  modbus/client.py
   services/pollers.py
 ```
