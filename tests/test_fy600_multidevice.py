@@ -1,6 +1,8 @@
 import unittest
 
-from app.config import settings
+from pydantic import ValidationError
+
+from app.config import Settings, settings
 
 
 class TestFY600MultiDeviceConfiguration(unittest.TestCase):
@@ -16,6 +18,23 @@ class TestFY600MultiDeviceConfiguration(unittest.TestCase):
         ips = {device.get("ip") for device in devices}
         self.assertIn("192.168.0.16", ips)
         self.assertIn("192.168.0.18", ips)
+
+    def test_settings_rejects_fy600_registry_entries_missing_required_keys(self):
+        malformed_devices = [
+            {
+                "name": "broken_tank",
+                "tank_id": "broken_tank",
+                "ip": "192.168.0.50",
+                "port": 502,
+                "unit": 1,
+                "level_register": 0x008A,
+                # setpoint_register, output_register, and scale fields intentionally omitted
+                "enabled": True,
+            }
+        ]
+
+        with self.assertRaises(ValidationError):
+            Settings(fy600_devices=malformed_devices)
 
 
 if __name__ == "__main__":

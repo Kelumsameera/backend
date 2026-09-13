@@ -1,5 +1,6 @@
 from typing import Any
 
+from pydantic import field_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 DEFAULT_FY600_DEVICES: list[dict[str, Any]] = [
@@ -73,6 +74,65 @@ class Settings(BaseSettings):
     # environment overrides when a list is provided as a JSON string. If this
     # isn’t provided, the default registry above becomes the source of truth.
     fy600_devices: list[dict[str, Any]] = DEFAULT_FY600_DEVICES
+
+    @field_validator("fy600_devices")
+    @classmethod
+    def validate_fy600_devices(
+        cls, value: list[dict[str, Any]]
+    ) -> list[dict[str, Any]]:
+        if not isinstance(value, list):
+            raise ValueError("fy600_devices must be a list of device dictionaries")
+
+        required_keys = {
+            "name",
+            "tank_id",
+            "ip",
+            "port",
+            "unit",
+            "level_register",
+            "setpoint_register",
+            "output_register",
+            "level_scale",
+            "setpoint_scale",
+            "output_scale",
+            "timeout",
+            "retries",
+            "retry_delay",
+            "reconnect_delay",
+            "stale_after_seconds",
+            "enabled",
+        }
+
+        for index, device in enumerate(value):
+            if not isinstance(device, dict):
+                raise ValueError(f"fy600_devices[{index}] must be a device object")
+
+            missing = sorted(required_keys - set(device.keys()))
+            if missing:
+                raise ValueError(
+                    f"fy600_devices[{index}] missing required keys: {', '.join(missing)}"
+                )
+
+            if not isinstance(device["name"], str) or not device["name"].strip():
+                raise ValueError(
+                    f"fy600_devices[{index}].name must be a non-empty string"
+                )
+            if not isinstance(device["tank_id"], str) or not device["tank_id"].strip():
+                raise ValueError(
+                    f"fy600_devices[{index}].tank_id must be a non-empty string"
+                )
+            if not isinstance(device["ip"], str) or not device["ip"].strip():
+                raise ValueError(
+                    f"fy600_devices[{index}].ip must be a non-empty string"
+                )
+            if not isinstance(device["port"], int):
+                raise ValueError(f"fy600_devices[{index}].port must be an integer")
+            if not isinstance(device["unit"], int):
+                raise ValueError(f"fy600_devices[{index}].unit must be an integer")
+            if not isinstance(device["enabled"], bool):
+                raise ValueError(f"fy600_devices[{index}].enabled must be a boolean")
+
+        return value
 
     # Storage protection
     retention_days: int = 14
