@@ -117,3 +117,5 @@ app/
   modbus/client.py
   services/pollers.py
 ```
+
+Automatic deployment configured.
