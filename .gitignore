@@ -1,4 +1,14 @@
-# Python virtual environments
+# Local environment
+.env
+.env.backup
+
+# Local SQLite runtime database
+data/*.db
+data/*.db-shm
+data/*.db-wal
+
+# Accidental malformed local files
+data/modbus.dbimport*# Python virtual environments
 .venv/
 venv/
 ENV/
