@@ -1,0 +1,33 @@
+name: Deploy Backend
+
+on:
+  push:
+    branches:
+      - main
+
+jobs:
+  deploy:
+    runs-on: self-hosted
+
+    steps:
+      - name: Deploy latest code
+        run: |
+          cd /home/flexieng/Documents/backend
+
+          echo "Pulling latest code..."
+          git fetch origin main
+          git reset --hard origin/main
+
+          echo "Installing dependencies..."
+          /home/flexieng/Documents/backend/.venv/bin/python -m pip install -r requirements.txt
+
+          echo "Restarting backend..."
+          sudo systemctl restart flexicare-backend
+
+          echo "Checking backend status..."
+          sudo systemctl is-active --quiet flexicare-backend
+
+          echo "Testing health endpoint..."
+          curl --fail http://localhost:3000/health
+
+          echo "Backend deployment completed!"
