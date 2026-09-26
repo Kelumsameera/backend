@@ -28,6 +28,6 @@ jobs:
           sudo systemctl is-active --quiet flexicare-backend
 
           echo "Testing health endpoint..."
-          curl --fail http://localhost:3000/health
+          curl --fail http://localhost:5000/health
 
           echo "Backend deployment completed!"
