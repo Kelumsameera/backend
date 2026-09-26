@@ -12,6 +12,8 @@ jobs:
     steps:
       - name: Deploy latest code
         run: |
+          set -e
+
           cd /home/flexieng/Documents/backend
 
           echo "Pulling latest code..."
@@ -22,12 +24,12 @@ jobs:
           /home/flexieng/Documents/backend/.venv/bin/python -m pip install -r requirements.txt
 
           echo "Restarting backend..."
-          sudo systemctl restart flexicare-backend
+          sudo -n /usr/bin/systemctl restart flexicare-backend
 
           echo "Checking backend status..."
-          sudo systemctl is-active --quiet flexicare-backend
+          sudo -n /usr/bin/systemctl is-active --quiet flexicare-backend
 
           echo "Testing health endpoint..."
-          curl --fail http://localhost:5000/health
+          curl --fail http://localhost:3000/health
 
           echo "Backend deployment completed!"
