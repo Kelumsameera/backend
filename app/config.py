@@ -32,7 +32,7 @@ DEFAULT_FY600_DEVICES: list[dict[str, Any]] = [
         "level_register": 0x008A,  # REQUIRES CONFIRMATION
         "setpoint_register": 0x0000,  # REQUIRES CONFIRMATION
         "output_register": 0x0087,  # REQUIRES CONFIRMATION
-        "level_scale": 100.0,
+        "level_scale": 10.0,
         "setpoint_scale": 10.0,
         "output_scale": 10.0,
         "timeout": 2.0,
