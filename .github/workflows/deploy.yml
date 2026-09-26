@@ -30,6 +30,22 @@ jobs:
           sudo -n /usr/bin/systemctl is-active --quiet flexicare-backend
 
           echo "Testing health endpoint..."
-          curl --fail http://localhost:3000/health
+
+          for i in {1..15}; do
+            if curl --fail --silent http://localhost:3000/health; then
+              echo
+              echo "Backend health check passed!"
+              break
+            fi
+
+            echo "Backend is starting... attempt $i/15"
+            sleep 2
+
+            if [ "$i" -eq 15 ]; then
+              echo "Backend health check failed."
+              sudo -n /usr/bin/systemctl status flexicare-backend --no-pager -l
+              exit 1
+            fi
+          done
 
           echo "Backend deployment completed!"
