@@ -1,9 +1,8 @@
 name: Deploy Backend
 
+# Legacy deployment retained for explicit manual use only.
 on:
-  push:
-    branches:
-      - main
+  workflow_dispatch:
 
 jobs:
   deploy:
