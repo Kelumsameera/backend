@@ -121,3 +121,18 @@ app/
 Automatic deployment configured.
 
 Deployment verification completed.
+
+## LAN automatic deployment
+
+The Ubuntu `flexicare-auto-deploy.timer` checks this repository's public `main`
+branch every minute and asks the local Coolify API to deploy new commits.
+Push changes to `main`; manual dashboard deployment is not required.
+GitHub access requires internet, while the deployed monitoring service runs on
+LAN without it. Failed deployments retry after ten minutes.
+
+```bash
+systemctl status flexicare-auto-deploy.timer
+sudo journalctl -u flexicare-auto-deploy.service -n 30 --no-pager
+```
+
+Pause checks with `sudo systemctl stop flexicare-auto-deploy.timer`.
