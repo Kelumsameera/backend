@@ -76,6 +76,11 @@ async def water_filter(
     return await db.query_water(start, end, device=device)
 
 
+@router.get("/pressure/trend")
+async def pressure_trend(minutes: int = Query(60, ge=30, le=1440)):
+    return await db.query_pressure_trend(minutes)
+
+
 @router.get("/water-tank/trend")
 async def water_trend(minutes: int = Query(60, ge=30, le=1440)):
     return await db.query_water_trend(minutes)

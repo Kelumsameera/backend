@@ -290,6 +290,22 @@ async def query_water_consumption(device: str, max_height: float) -> dict[str, A
     }
 
 
+async def query_pressure_trend(minutes: int) -> list[dict[str, Any]]:
+    end = datetime.now(COLOMBO)
+    start = end - timedelta(minutes=minutes)
+    connection = await get_db()
+    cursor = await connection.execute(
+        """
+        SELECT device, AVG(value) AS value, MIN(time) AS time
+        FROM pressure_readings WHERE time >= ? AND time <= ?
+        GROUP BY device, CAST(strftime('%s', time) AS INTEGER) / ?
+        ORDER BY time ASC
+        """,
+        (start.strftime('%Y-%m-%d %H:%M:%S'), end.strftime('%Y-%m-%d %H:%M:%S'), max(15, minutes * 60 // 120)),
+    )
+    return [dict(row) for row in await cursor.fetchall()]
+
+
 async def query_water_trend(minutes: int) -> list[dict[str, Any]]:
     """Aggregate the complete rolling window, rather than truncating raw rows."""
     end = datetime.now(COLOMBO)
