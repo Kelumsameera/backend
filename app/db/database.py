@@ -243,6 +243,53 @@ async def query_water(
     return [dict(r) for r in rows]
 
 
+async def query_water_consumption(device: str, max_height: float) -> dict[str, Any]:
+    """Estimate level drops over all stored rows in seven calendar days."""
+    now = datetime.now(COLOMBO)
+    midnight = now.replace(hour=0, minute=0, second=0, microsecond=0)
+    start = midnight - timedelta(days=6)
+    connection = await get_db()
+    cursor = await connection.execute(
+        """
+        WITH readings AS (
+            SELECT id, time, MIN(?, MAX(0, level)) AS level
+            FROM water_readings WHERE device = ? AND time >= ? AND time <= ?
+        ), changes AS (
+            SELECT time, level,
+                   LAG(level) OVER (ORDER BY time, id) AS previous_level,
+                   LAG(time) OVER (ORDER BY time, id) AS previous_time
+            FROM readings
+        )
+        SELECT substr(time, 1, 13) AS hour, COUNT(*) AS samples,
+               SUM(CASE WHEN strftime('%s', time) - strftime('%s', previous_time) <= 300
+                        AND previous_level > level THEN previous_level - level ELSE 0 END) AS used
+        FROM changes GROUP BY hour ORDER BY hour
+        """,
+        (max_height, device, start.strftime('%Y-%m-%d %H:%M:%S'), now.strftime('%Y-%m-%d %H:%M:%S')),
+    )
+    hours = [dict(row) for row in await cursor.fetchall()]
+    by_hour = {row['hour']: row['used'] or 0.0 for row in hours}
+    by_day: dict[str, float] = {}
+    for row in hours:
+        day = row['hour'][:10]
+        by_day[day] = by_day.get(day, 0.0) + (row['used'] or 0.0)
+    total = sum(by_day.values())
+    current_hour = now.replace(minute=0, second=0, microsecond=0)
+    recent = []
+    for offset in range(11, -1, -1):
+        hour = current_hour - timedelta(hours=offset)
+        recent.append({'label': hour.strftime('%I:%M %p'), 'cm': by_hour.get(hour.strftime('%Y-%m-%d %H'), 0.0)})
+    return {
+        'todayUsedCm': by_day.get(now.strftime('%Y-%m-%d'), 0.0),
+        'last7DaysUsedCm': total,
+        'avgDailyUsedCm': total / max(1, len(by_day)),
+        'recent': recent,
+        'daily': [{'label': (start + timedelta(days=i)).strftime('%a'),
+                   'cm': by_day.get((start + timedelta(days=i)).strftime('%Y-%m-%d'), 0.0)} for i in range(7)],
+        'daysWithData': len(by_day),
+    }
+
+
 async def query_water_trend(minutes: int) -> list[dict[str, Any]]:
     """Aggregate the complete rolling window, rather than truncating raw rows."""
     end = datetime.now(COLOMBO)

@@ -81,6 +81,14 @@ async def water_trend(minutes: int = Query(60, ge=30, le=1440)):
     return await db.query_water_trend(minutes)
 
 
+@router.get("/water-tank/consumption")
+async def water_consumption(
+    device: str = Query(...),
+    max_height: float = Query(..., gt=0, le=10000),
+):
+    return await db.query_water_consumption(device, max_height)
+
+
 @router.get("/water-tank/database/filter/full")
 async def water_filter_full(
     start: str = Query(...),
